@@ -1,0 +1,44 @@
+.payment-list-container {
+  padding: 20px;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .search-field {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .table-container {
+    overflow-x: auto;
+
+    table {
+      width: 100%;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      text-transform: capitalize;
+
+      &.pending {
+        background-color: #fff3cd;
+        color: #856404;
+      }
+
+      &.due_now {
+        background-color: #cce5ff;
+        color: #004085;
+      }
+
+      &.completed {
+        background-color: #d4edda;
+        color: #155724;
+      }
+    }
+  }
+}

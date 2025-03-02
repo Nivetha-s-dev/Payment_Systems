@@ -1,0 +1,311 @@
+// components/payment-form/payment-form.component.ts
+@Component({
+    selector: 'app-payment-form',
+    template: `
+    <form [formGroup]="paymentForm" (ngSubmit)="onSubmit()">
+      <div class="form-container">
+        <!-- Personal Information -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Personal Information</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="form-row">
+              <mat-form-field>
+                <input matInput placeholder="First Name" formControlName="payee_first_name">
+                <mat-error *ngIf="paymentForm.get('payee_first_name')?.hasError('required')">
+                  First name is required
+                </mat-error>
+              </mat-form-field>
+
+              <mat-form-field>
+                <input matInput placeholder="Last Name" formControlName="payee_last_name">
+                <mat-error *ngIf="paymentForm.get('payee_last_name')?.hasError('required')">
+                  Last name is required
+                </mat-error>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field class="full-width">
+              <input matInput placeholder="Email" formControlName="payee_email">
+              <mat-error *ngIf="paymentForm.get('payee_email')?.hasError('required')">
+                Email is required
+              </mat-error>
+              <mat-error *ngIf="paymentForm.get('payee_email')?.hasError('email')">
+                Please enter a valid email
+              </mat-error>
+            </mat-form-field>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Payment Details -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Payment Details</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="form-row">
+              <mat-form-field>
+                <input matInput type="number" placeholder="Due Amount" formControlName="due_amount">
+                <mat-error *ngIf="paymentForm.get('due_amount')?.hasError('required')">
+                  Due amount is required
+                </mat-error>
+                <mat-error *ngIf="paymentForm.get('due_amount')?.hasError('min')">
+                  Amount must be greater than 0
+                </mat-error>
+              </mat-form-field>
+
+              <mat-form-field>
+                <mat-select placeholder="Currency" formControlName="currency">
+                  <mat-option *ngFor="let currency of currencies$ | async" [value]="currency">
+                    {{currency}}
+                  </mat-option>
+                </mat-select>
+                <mat-error *ngIf="paymentForm.get('currency')?.hasError('required')">
+                  Currency is required
+                </mat-error>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field>
+              <input matInput [matDatepicker]="picker" placeholder="Due Date" formControlName="due_date">
+              <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+              <mat-datepicker #picker></mat-datepicker>
+              <mat-error *ngIf="paymentForm.get('due_date')?.hasError('required')">
+                Due date is required
+              </mat-error>
+            </mat-form-field>
+
+            <mat-form-field>
+              <mat-select placeholder="Status" formControlName="status">
+                <mat-option *ngFor="let status of availableStatuses" [value]="status">
+                  {{status}}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Address -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Address</mat-card-title>
+          </mat-card-header>
+          <mat-card-content formGroupName="address">
+            <mat-form-field>
+              <input matInput
+                     placeholder="Country"
+                     formControlName="country"
+                     [matAutocomplete]="countryAuto">
+              <mat-autocomplete #countryAuto="matAutocomplete" (optionSelected)="onCountrySelected($event)">
+                <mat-option *ngFor="let country of filteredCountries$ | async" [value]="country">
+                  {{country}}
+                </mat-option>
+              </mat-autocomplete>
+            </mat-form-field>
+
+            <mat-form-field>
+              <input matInput
+                     placeholder="City"
+                     formControlName="city"
+                     [matAutocomplete]="cityAuto">
+              <mat-autocomplete #cityAuto="matAutocomplete">
+                <mat-option *ngFor="let city of filteredCities$ | async" [value]="city">
+                  {{city}}
+                </mat-option>
+              </mat-autocomplete>
+            </mat-form-field>
+
+            <mat-form-field>
+              <input matInput placeholder="State" formControlName="state">
+            </mat-form-field>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Evidence Upload -->
+        <mat-card *ngIf="isEditMode && paymentForm.get('status')?.value === 'completed'">
+          <mat-card-header>
+            <mat-card-title>Payment Evidence</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <input type="file" 
+                   #fileInput
+                   style="display: none"
+                   (change)="onFileSelected($event)"
+                   accept=".pdf,.jpg,.png">
+            <button type="button" 
+                    mat-raised-button 
+                    color="primary" 
+                    (click)="fileInput.click()">
+              Upload Evidence
+            </button>
+            <span *ngIf="selectedFile">{{selectedFile.name}}</span>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button type="button" mat-button (click)="onCancel()">Cancel</button>
+          <button type="submit" 
+                  mat-raised-button 
+                  color="primary"
+                  [disabled]="paymentForm.invalid || 
+                            (isEditMode && 
+                             paymentForm.get('status')?.value === 'completed' && 
+                             !selectedFile && 
+                             !payment?.evidence_file)">
+            {{isEditMode ? 'Update' : 'Create'}} Payment
+          </button>
+        </div>
+      </div>
+    </form>
+  `,
+    styles: [`
+    .form-container {
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .form-row {
+      display: flex;
+      gap: 20px;
+    }
+    mat-card {
+      margin-bottom: 20px;
+    }
+    .full-width {
+      width: 100%;
+    }
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+  `]
+})
+export class PaymentFormComponent implements OnInit {
+    @Input() payment?: Payment;
+    paymentForm: FormGroup;
+    selectedFile: File | null = null;
+    isEditMode = false;
+    currencies$: Observable<string[]>;
+    countries$: Observable<string[]>;
+    filteredCountries$: Observable<string[]>;
+    filteredCities$: Observable<string[]>;
+    availableStatuses: PaymentStatus[] = [PaymentStatus.PENDING];
+
+    constructor(
+        private fb: FormBuilder,
+        private paymentService: PaymentService,
+        private locationService: LocationService,
+        private dialogRef: MatDialogRef<PaymentFormComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: Payment
+    ) {
+        this.isEditMode = !!data;
+        this.payment = data;
+
+        if (this.isEditMode) {
+            this.availableStatuses = [
+                PaymentStatus.PENDING,
+                PaymentStatus.DUE_NOW,
+                PaymentStatus.COMPLETED
+            ];
+        }
+
+        this.initForm();
+        this.setupAutocomplete();
+    }
+
+    private initForm() {
+        this.paymentForm = this.fb.group({
+            payee_first_name: ['', Validators.required],
+            payee_last_name: ['', Validators.required],
+            payee_email: ['', [Validators.required, Validators.email]],
+            due_amount: ['', [Validators.required, Validators.min(0)]],
+            due_date: ['', Validators.required],
+            status: [PaymentStatus.PENDING, Validators.required],
+            currency: ['', Validators.required],
+            address: this.fb.group({
+                country: ['', Validators.required],
+                city: ['', Validators.required],
+                state: ['']
+            })
+        });
+
+        if (this.payment) {
+            this.paymentForm.patchValue(this.payment);
+        }
+    }
+
+    private setupAutocomplete() {
+        this.currencies$ = this.locationService.getCurrencies();
+        this.countries$ = this.locationService.getCountries();
+
+        // Setup country autocomplete
+        this.filteredCountries$ = this.paymentForm.get('address.country')!.valueChanges.pipe(
+            startWith(''),
+            map(value => this._filter(value))
+        );
+
+        // Setup city autocomplete
+        this.filteredCities$ = this.paymentForm.get('address.city')!.valueChanges.pipe(
+            startWith(''),
+            switchMap(value => {
+                const country = this.paymentForm.get('address.country')!.value;
+                if (!country) return of([]);
+                return this.locationService.getCities(country).pipe(
+                    map(cities => cities.filter(city =>
+                        city.toLowerCase().includes(value.toLowerCase())
+                    ))
+                );
+            })
+        );
+    }
+
+    private _filter(value: string): string[] {
+        const filterValue = value.toLowerCase();
+        return this.countries$.pipe(
+            map(countries =>
+                countries.filter(country =>
+                    country.toLowerCase().includes(filterValue)
+                )
+            )
+        );
+    }
+
+    onCountrySelected(event: MatAutocompleteSelectedEvent) {
+        this.paymentForm.get('address.city')!.setValue('');
+    }
+
+    onFileSelected(event: any) {
+        const file = event.target.files[0];
+        if (file) {
+            this.selectedFile = file;
+        }
+    }
+
+    async onSubmit() {
+        if (this.paymentForm.invalid) return;
+
+        const formData = this.paymentForm.value;
+
+        try {
+            if (this.isEditMode) {
+                if (this.selectedFile && formData.status === PaymentStatus.COMPLETED) {
+                    await this.paymentService.uploadEvidence(this.payment!._id, this.selectedFile).toPromise();
+                }
+                await this.paymentService.updatePayment(this.payment!._id, formData).toPromise();
+            } else {
+                await this.paymentService.createPayment(formData).toPromise();
+            }
+            this.dialogRef.close(true);
+        } catch (error) {
+            console.error('Error saving payment:', error);
+            // Handle error (show snackbar/toast)
+        }
+    }
+
+    onCancel() {
+        this.dialogRef.close();
+    }
+}
